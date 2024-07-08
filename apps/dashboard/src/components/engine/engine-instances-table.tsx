@@ -1,4 +1,3 @@
-import { useApiAuthToken } from "@3rdweb-sdk/react/hooks/useApi";
 import {
   type EditEngineInstanceInput,
   type EngineInstance,
@@ -8,6 +7,7 @@ import {
   useEngineRemoveCloudHosted,
   useEngineRemoveFromDashboard,
 } from "@3rdweb-sdk/react/hooks/useEngine";
+import { useLoggedInUser } from "@3rdweb-sdk/react/hooks/useLoggedInUser";
 import {
   Alert,
   AlertDescription,
@@ -33,7 +33,6 @@ import {
 } from "@chakra-ui/react";
 import { useMutation } from "@tanstack/react-query";
 import { createColumnHelper } from "@tanstack/react-table";
-import { useAddress } from "@thirdweb-dev/react";
 import { TWTable } from "components/shared/TWTable";
 import { useTrack } from "hooks/analytics/useTrack";
 import {
@@ -45,6 +44,7 @@ import {
 import { useForm } from "react-hook-form";
 import { BiPencil } from "react-icons/bi";
 import { FiArrowRight, FiTrash } from "react-icons/fi";
+import { useActiveAccount } from "thirdweb/react";
 import { Badge, Button, FormLabel, Heading, Text } from "tw-components";
 
 interface EngineInstancesTableProps {
@@ -65,8 +65,8 @@ export const EngineInstancesTable: React.FC<EngineInstancesTableProps> = ({
   const editDisclosure = useDisclosure();
   const removeDisclosure = useDisclosure();
   const trackEvent = useTrack();
-  const { token } = useApiAuthToken();
-  const address = useAddress();
+  const token = useLoggedInUser().user?.jwt ?? null;
+  const address = useActiveAccount()?.address;
   const toast = useToast();
 
   const [instanceToUpdate, setInstanceToUpdate] = useState<

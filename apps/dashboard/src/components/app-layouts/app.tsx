@@ -1,6 +1,5 @@
 import { EVMContractInfoProvider } from "@3rdweb-sdk/react";
 import { CustomConnectWallet } from "@3rdweb-sdk/react/components/connect-wallet";
-import { ApolloClient, ApolloProvider, InMemoryCache } from "@apollo/client";
 import { Flex, SimpleGrid } from "@chakra-ui/react";
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
 import {
@@ -12,7 +11,7 @@ import {
   PersistQueryClientProvider,
   type Persister,
 } from "@tanstack/react-query-persist-client";
-import { shouldNeverPersistQuery, useAddress } from "@thirdweb-dev/react";
+import { shouldNeverPersistQuery } from "@thirdweb-dev/react";
 import { ConfigureNetworkModal } from "components/configure-networks/ConfigureNetworkModal";
 import { DeployModalProvider } from "components/contract-components/contract-deploy-form/deploy-context-modal";
 import { AppShell, type AppShellProps } from "components/layout/app-shell";
@@ -31,6 +30,7 @@ import {
 } from "hooks/networkConfigModal";
 import { del, get, set } from "idb-keyval";
 import { useEffect, useMemo, useState } from "react";
+import { useActiveAccount } from "thirdweb/react";
 import { Heading } from "tw-components";
 import type { ComponentWithChildren } from "types/component-with-children";
 import { bigNumberReplacer } from "utils/bignumber";
@@ -39,22 +39,6 @@ import {
   DashboardThirdwebProvider,
   type DashboardThirdwebProviderProps,
 } from "./providers";
-
-const apolloClient = new ApolloClient({
-  uri: process.env.NEXT_PUBLIC_PAYMENTS_API,
-  credentials: "include",
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: "no-cache",
-      errorPolicy: "ignore",
-    },
-    query: {
-      fetchPolicy: "no-cache",
-      errorPolicy: "all",
-    },
-  },
-});
 
 const __CACHE_BUSTER = "3.14.40-nightly-1e6f9dcc-20230831023648";
 
@@ -113,19 +97,7 @@ interface AppLayoutProps extends AppShellProps, DashboardThirdwebProviderProps {
 
 export const AppLayout: ComponentWithChildren<AppLayoutProps> = (props) => {
   // has to be constructed in here because it may otherwise share state between SSR'd pages
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            // 24 hours
-            cacheTime: 1000 * 60 * 60 * 24,
-            // 30 seconds
-            staleTime: 1000 * 30,
-          },
-        },
-      }),
-  );
+  const [queryClient] = useState(() => new QueryClient());
 
   // will be deleted as part of: https://github.com/thirdweb-dev/dashboard/pull/2648
   // eslint-disable-next-line no-restricted-syntax
@@ -152,27 +124,25 @@ export const AppLayout: ComponentWithChildren<AppLayoutProps> = (props) => {
     >
       <Hydrate state={props.dehydratedState}>
         <ErrorProvider>
-          <ApolloProvider client={apolloClient}>
-            <DeployModalProvider>
-              <AllChainsProvider>
-                <ChainsProvider>
-                  <EVMContractInfoProvider value={props.contractInfo}>
-                    <DashboardThirdwebProvider>
-                      <SanctionedAddressesChecker>
-                        <PosthogIdentifier />
-                        <ConfigModal />
+          <DeployModalProvider>
+            <AllChainsProvider>
+              <ChainsProvider>
+                <EVMContractInfoProvider value={props.contractInfo}>
+                  <DashboardThirdwebProvider>
+                    <SanctionedAddressesChecker>
+                      <PosthogIdentifier />
+                      <ConfigModal />
 
-                        <OnboardingModal />
-                        <OpCreditsGrantedModalWrapper />
+                      <OnboardingModal />
+                      <OpCreditsGrantedModalWrapper />
 
-                        <AppShell {...props} />
-                      </SanctionedAddressesChecker>
-                    </DashboardThirdwebProvider>
-                  </EVMContractInfoProvider>
-                </ChainsProvider>
-              </AllChainsProvider>
-            </DeployModalProvider>
-          </ApolloProvider>
+                      <AppShell {...props} />
+                    </SanctionedAddressesChecker>
+                  </DashboardThirdwebProvider>
+                </EVMContractInfoProvider>
+              </ChainsProvider>
+            </AllChainsProvider>
+          </DeployModalProvider>
         </ErrorProvider>
       </Hydrate>
     </PersistQueryClientProvider>
@@ -180,7 +150,7 @@ export const AppLayout: ComponentWithChildren<AppLayoutProps> = (props) => {
 };
 
 const SanctionedAddressesChecker: ComponentWithChildren = ({ children }) => {
-  const address = useAddress();
+  const address = useActiveAccount()?.address;
   const isBlocked = useMemo(() => {
     return address && isSanctionedAddress(address);
   }, [address]);
@@ -198,7 +168,7 @@ const SanctionedAddressesChecker: ComponentWithChildren = ({ children }) => {
       >
         <Flex gap={4} direction="column" align="center">
           <Heading as="p">Address is blocked</Heading>
-          <CustomConnectWallet auth={{ loginOptional: true }} />
+          <CustomConnectWallet />
         </Flex>
       </SimpleGrid>
     );
